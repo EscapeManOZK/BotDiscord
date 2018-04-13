@@ -149,29 +149,63 @@ public class MainBot extends ListenerAdapter
 
 
         if (event.getTextChannel().canTalk()) {
+            int i;
+            boolean find=false;
+            for (i=0;i<GCommand.getM_command().size()&&!find;i++) {
+                if(msg.contains(GCommand.getPrefix()+GCommand.getM_command().get(i).getM_command())){
+                    find=true;
+                }
+            }
+            i--;
+            if (find){
+                if (event.getGuild().getSelfMember().hasPermission(Permission.MESSAGE_EMBED_LINKS)) { // si il le bot à les droit pour écrires
+                    channel.sendTyping();
+                    switch (i){
+                        case 0:    //help
+                            channel.sendMessage(GCommand.CommandHelp(Gserver).build()).queue();
+                            break;
+                        case 1:    //état
+                            channel.sendMessage(GCommand.CommandEtat(Gserver).build()).queue();
+                            break;
+                        case 2:    //server
+                            channel.sendMessage(GCommand.CommandServer(Gserver , msg).build()).queue();
+                            System.out.println("ok");
+                            break;
+                        case 3:    //online
+                            channel.sendMessage(GCommand.CommandOn(Gserver).build()).queue();
+                            break;
+                        case 4:    //offline
+                            channel.sendMessage(GCommand.CommandOff(Gserver).build()).queue();
+                            break;
+                    }
 
-            if (msg.equals(GCommand.getPrefix() + "help")) {
-                if (event.getGuild().getSelfMember().hasPermission(Permission.MESSAGE_EMBED_LINKS)) { // si il le bot à les droit pour écrires
-                    channel.sendTyping();
-                    channel.sendMessage(GCommand.CommandHelp(Gserver).build()).queue();
                 } else { // sinon il envoie le message à la personne
                     channel.sendTyping();
                     channel.sendMessage("@" + author.getName() + " regarde tes messages privés").queue();
                     author.openPrivateChannel().complete().sendTyping();
-                    author.openPrivateChannel().complete().sendMessage(GCommand.CommandHelp(Gserver).build()).queue();
+                    switch (i){
+                        case 0:    //help
+                            author.openPrivateChannel().complete().sendMessage(GCommand.CommandHelp(Gserver).build()).queue();
+                            break;
+                        case 1:    //état
+                            author.openPrivateChannel().complete().sendMessage(GCommand.CommandEtat(Gserver).build()).queue();
+                            break;
+                        case 2:    //server
+                            author.openPrivateChannel().complete().sendMessage(GCommand.CommandServer(Gserver , msg).build()).queue();
+                            System.out.println("ok");
+                            break;
+                        case 3:    //online
+                            author.openPrivateChannel().complete().sendMessage(GCommand.CommandOn(Gserver).build()).queue();
+                            break;
+                        case 4:    //offline
+                            author.openPrivateChannel().complete().sendMessage(GCommand.CommandOff(Gserver).build()).queue();
+                            break;
+                    }
+
                 }
+
             }
-            if (msg.contains(GCommand.getPrefix() + "srv")){
-                if (event.getGuild().getSelfMember().hasPermission(Permission.MESSAGE_EMBED_LINKS)) { // si il le bot à les droit pour écrires
-                    channel.sendTyping();
-                    channel.sendMessage(GCommand.CommandServer(Gserver , msg.split(" ")[1],msg.split(" ")[2]).build()).queue();
-                } else { // sinon il envoie le message à la personne
-                    channel.sendTyping();
-                    channel.sendMessage("@" + author.getName() + " regarde tes messages privés").queue();
-                    author.openPrivateChannel().complete().sendTyping();
-                    author.openPrivateChannel().complete().sendMessage(GCommand.CommandHelp(Gserver).build()).queue();
-                }
-            }
+
         }else{
             event.getMessage().delete();
             author.openPrivateChannel().complete().sendTyping();

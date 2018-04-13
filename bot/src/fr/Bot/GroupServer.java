@@ -19,7 +19,7 @@ public class GroupServer {
         boolean find = false;
         Serveur tmp = null;
         for (Serveur s:m_serveur) {
-            String name_srv="["+s.getM_pays()+"]"+s.getM_name();
+            String name_srv=s.getM_pays();
             if(!find&&name_srv.equals(name)){
                 find=true;
                 tmp=s;
