@@ -1,24 +1,30 @@
-package fr.Bot;
+﻿package fr.Bot;
 
 import net.dv8tion.jda.client.entities.Group;
 
 import net.dv8tion.jda.core.*;
 import net.dv8tion.jda.core.entities.*;
-import net.dv8tion.jda.core.entities.Game.GameType;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
-import net.dv8tion.jda.core.exceptions.PermissionException;
-import net.dv8tion.jda.core.exceptions.RateLimitedException;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 
 import javax.security.auth.login.LoginException;
+import java.awt.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.*;
+import java.util.List;
 
 public class MainBot extends ListenerAdapter
 {
     private static boolean stop=false;
     private static String id="s!";
     private List<Commande> m_command= new ArrayList<Commande>();
-    private List<Serveur> m_serveur = new ArrayList<Serveur>();
+    private List<GroupServer> m_serveur = new ArrayList<GroupServer>();
+    List<String>pays = new ArrayList<String>();
+
 
 
     /**
@@ -26,6 +32,7 @@ public class MainBot extends ListenerAdapter
      */
     public static void main(String[] args)
     {
+
         JDA jda = null;
         //We construct a builder for a BOT account. If we wanted to use a CLIENT account
         // we would use AccountType.CLIENT
@@ -59,10 +66,10 @@ public class MainBot extends ListenerAdapter
         }
     }
 
-    private void init() {
+    private void initCommand() {
         Commande help = new Commande("HELP","help","Affiches toutes les commandes disponibles ainsi que la liste de tous les serveurs");
         Commande etat = new Commande("ETAT","etat","affiche l'état de tous les serveurs ( si ils sont online ou offline");
-        Commande server = new Commande("SERVER","srv <nom_server>","affiche l'état du serveur spécifier");
+        Commande server = new Commande("SERVER","srv <nom_Groupe_de_Serveur> <Nom_du_Serveur>","affiche l'état du serveur spécifier");
         Commande on = new Commande("ONLINE", "online","Affiche les serveurs disponibles");
         Commande off = new Commande("OFFLINE", "offline","Affiche les serveurs non disponible");
         m_command.add(help);
@@ -71,10 +78,40 @@ public class MainBot extends ListenerAdapter
         m_command.add(on);
         m_command.add(off);
     }
+    private void initServeur() throws IOException {
+        pays.add("EU");pays.add("DE");pays.add("EN");pays.add("ES");pays.add("FR");pays.add("IT");pays.add("PL");pays.add("DE");pays.add("EN");pays.add("ES");pays.add("FR");pays.add("IT");pays.add("PL");
+        String s;
+        GroupServer group = null;
+        Serveur srv = null;
+        boolean premier=true;
+        int i=0;
+        BufferedReader r = new BufferedReader(new InputStreamReader(new URL("https://www.g-status.com/game/soulworker").openStream()));
+        while ((s = r.readLine()) != null) {
+            if (s.contains("tab_title")){
+                String title = s.split("<div class=\"tab_title\"><h3>")[1].split("</h3></div>")[0];
+                if (!premier) m_serveur.add(group);
+                else premier=false;
+                group=new GroupServer(title);
+            }else if (s.contains("flag text-align-center")){
+                srv=new Serveur();
+                srv.setM_pays(pays.get(i));
+                i++;
+            }else if(s.contains("server_name")){
+                srv.setM_name(s.split("\"server_name\">")[1].split("</di")[0]);
+            }else if(s.contains("last_offline_date")){
+                srv.setM_date(s.split("line_date\">")[1].split("</")[0]);
+            }else if(s.contains("div class=\"status")){
+                if (s.contains("ONLINE"))srv.setM_actif(true);
+                else  srv.setM_actif(false);
+                group.addServeur(srv);
+            }
+        }
+        m_serveur.add(group);
+    }
 
     private static void exit(JDA jda) {
         jda.getTextChannelById("429046247798865920").sendTyping();
-        jda.getTextChannelById("429046247798865920").sendMessage("Au revoir @everyone").queue();
+        jda.getTextChannelById("429046247798865920").sendMessage("Au revoir everyone").queue();
         jda.shutdown();
         stop = true;
     }
@@ -98,7 +135,12 @@ public class MainBot extends ListenerAdapter
     @Override
     public void onMessageReceived(MessageReceivedEvent event)
     {
-        init();
+        initCommand();
+        try {
+            initServeur();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         JDA jda = event.getJDA();
         User author = event.getAuthor();
         Message message = event.getMessage();
@@ -172,13 +214,21 @@ public class MainBot extends ListenerAdapter
 
     private EmbedBuilder setEmbedBuilder_Helper() {
         EmbedBuilder build = new EmbedBuilder();
-        build.setTitle("HELP");
+        build.setTitle("**HELP**");
+        build.setColor(Color.red);
         build.setDescription("Voici tous les commandes disponible : \n\nPour chaque commande rajouter devant \""+id+"\" \n\n ");
 
         for (Commande c : m_command) {
-            build.appendDescription("[COMMANDE]["+c.getM_title() + "]\n> " + c.getM_command() + "  " + c.getM_descrip()+"\n\n");
+            build.appendDescription("[COMMANDE]["+c.getM_title() + "]\n> **" + c.getM_command() + "**  " + c.getM_descrip()+"\n\n");
         }
-        build.appendDescription("==========================================================\n\nVoici tous les serveurs : \n Aucun serveur reconnue actuellement\n Merci de votre patience BotDiscord en cours de developpement");
+        build.appendDescription("==========================================================\n\nVoici tous les serveurs : \n ");
+        for (GroupServer s:m_serveur) {
+            build.appendDescription("\n[SERVER GROUP : "+s.getM_title()+"]\n\n");
+            for(int i=0;i<s.getSize();i++){
+                Serveur srv = s.getServeurbyId(i);
+                build.appendDescription("["+srv.getM_pays()+"]"+srv.getM_name()+"\n");
+            }
+        }
         return build;
     }
 }
