@@ -1,4 +1,4 @@
-﻿package fr.Bot;
+package fr.Bot;
 
 import net.dv8tion.jda.client.entities.Group;
 
@@ -8,22 +8,16 @@ import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
 
 import javax.security.auth.login.LoginException;
-import java.awt.*;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.*;
-import java.util.List;
+
 
 public class MainBot extends ListenerAdapter
 {
     private static boolean stop=false;
-    private static String id="s!";
-    private List<Commande> m_command= new ArrayList<Commande>();
-    private List<GroupServer> m_serveur = new ArrayList<GroupServer>();
-    List<String>pays = new ArrayList<String>();
+    private GestionCommande GCommand;
+    private GestionServer Gserver;
+    private boolean GserverInitialise = false;
 
 
 
@@ -34,27 +28,20 @@ public class MainBot extends ListenerAdapter
     {
 
         JDA jda = null;
-        //We construct a builder for a BOT account. If we wanted to use a CLIENT account
-        // we would use AccountType.CLIENT
         try
         {
             jda = new JDABuilder(AccountType.BOT)
-                    .setToken(args[0])           //The token of the account that is logging in.
-                    .addEventListener(new MainBot())  //An instance of a class that will handle events.
-                    .buildBlocking();  //There are 2 ways to login, blocking vs async. Blocking guarantees that JDA will be completely loaded.
+                    .setToken(args[0])
+                    .addEventListener(new MainBot())
+                    .buildBlocking();
 
         }
         catch (LoginException e)
         {
-            //If anything goes wrong in terms of authentication, this is the exception that will represent it
             e.printStackTrace();
         }
         catch (InterruptedException e)
         {
-            //Due to the fact that buildBlocking is a blocking method, one which waits until JDA is fully loaded,
-            // the waiting can be interrupted. This is the exception that would fire in that situation.
-            //As a note: in this extremely simplified example this will never occur. In fact, this will never occur unless
-            // you use buildBlocking in a thread that has the possibility of being interrupted (async thread usage and interrupts)
             e.printStackTrace();
         }
         while (!stop) {
@@ -67,46 +54,26 @@ public class MainBot extends ListenerAdapter
     }
 
     private void initCommand() {
-        Commande help = new Commande("HELP","help","Affiches toutes les commandes disponibles ainsi que la liste de tous les serveurs");
-        Commande etat = new Commande("ETAT","etat","affiche l'état de tous les serveurs ( si ils sont online ou offline");
-        Commande server = new Commande("SERVER","srv <nom_Groupe_de_Serveur> <Nom_du_Serveur>","affiche l'état du serveur spécifier");
-        Commande on = new Commande("ONLINE", "online","Affiche les serveurs disponibles");
-        Commande off = new Commande("OFFLINE", "offline","Affiche les serveurs non disponible");
-        m_command.add(help);
-        m_command.add(etat);
-        m_command.add(server);
-        m_command.add(on);
-        m_command.add(off);
+        GCommand = new GestionCommande();
+
     }
-    private void initServeur() throws IOException {
-        pays.add("EU");pays.add("DE");pays.add("EN");pays.add("ES");pays.add("FR");pays.add("IT");pays.add("PL");pays.add("DE");pays.add("EN");pays.add("ES");pays.add("FR");pays.add("IT");pays.add("PL");
-        String s;
-        GroupServer group = null;
-        Serveur srv = null;
-        boolean premier=true;
-        int i=0;
-        BufferedReader r = new BufferedReader(new InputStreamReader(new URL("https://www.g-status.com/game/soulworker").openStream()));
-        while ((s = r.readLine()) != null) {
-            if (s.contains("tab_title")){
-                String title = s.split("<div class=\"tab_title\"><h3>")[1].split("</h3></div>")[0];
-                if (!premier) m_serveur.add(group);
-                else premier=false;
-                group=new GroupServer(title);
-            }else if (s.contains("flag text-align-center")){
-                srv=new Serveur();
-                srv.setM_pays(pays.get(i));
-                i++;
-            }else if(s.contains("server_name")){
-                srv.setM_name(s.split("\"server_name\">")[1].split("</di")[0]);
-            }else if(s.contains("last_offline_date")){
-                srv.setM_date(s.split("line_date\">")[1].split("</")[0]);
-            }else if(s.contains("div class=\"status")){
-                if (s.contains("ONLINE"))srv.setM_actif(true);
-                else  srv.setM_actif(false);
-                group.addServeur(srv);
+    private void initServeur()  {
+        if (!GserverInitialise) {
+            try {
+                Gserver = new GestionServer("https://www.g-status.com/game/soulworker");
+                GserverInitialise = true;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }else{
+            try {
+                GestionServer Gtemps = new GestionServer("https://www.g-status.com/game/soulworker");
+                Gserver.GroupServerActualise(Gtemps);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
-        m_serveur.add(group);
+
     }
 
     private static void exit(JDA jda) {
@@ -136,11 +103,8 @@ public class MainBot extends ListenerAdapter
     public void onMessageReceived(MessageReceivedEvent event)
     {
         initCommand();
-        try {
-            initServeur();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        initServeur();
+
         JDA jda = event.getJDA();
         User author = event.getAuthor();
         Message message = event.getMessage();
@@ -180,55 +144,38 @@ public class MainBot extends ListenerAdapter
 
             System.out.printf("[GRP: %s]<%s>: %s\n", groupName, author.getName(), msg);
         }
+
+
+
+
         if (event.getTextChannel().canTalk()) {
-            if (msg.equals(id + "help")) {
-                channel.sendTyping();
-                if (event.getGuild().getSelfMember().hasPermission(Permission.MESSAGE_EMBED_LINKS)) {
+
+            if (msg.equals(GCommand.getPrefix() + "help")) {
+                if (event.getGuild().getSelfMember().hasPermission(Permission.MESSAGE_EMBED_LINKS)) { // si il le bot à les droit pour écrires
                     channel.sendTyping();
-                    channel.sendMessage(setEmbedBuilder_Helper().build()).queue();
-                } else {
+                    channel.sendMessage(GCommand.CommandHelp(Gserver).build()).queue();
+                } else { // sinon il envoie le message à la personne
                     channel.sendTyping();
                     channel.sendMessage("@" + author.getName() + " regarde tes messages privés").queue();
                     author.openPrivateChannel().complete().sendTyping();
-
-                    author.openPrivateChannel().complete().sendMessage(setEmbedBuilder_Helper().build()).queue();
+                    author.openPrivateChannel().complete().sendMessage(GCommand.CommandHelp(Gserver).build()).queue();
                 }
-            } else if (msg.equals(id + "roll")) {
-                Random rand = new Random();
-                int roll = rand.nextInt(6) + 1;
-                channel.sendMessage("Your roll: " + roll).queue(sentMessage ->
-                {
-                    if (roll < 3) {
-                        channel.sendMessage("The roll for messageId: " + sentMessage.getId() + " wasn't very good... Must be bad luck!\n").queue();
-                    }
-                });
-            } else if (msg.equals(id + "help")) {
-
+            }
+            if (msg.contains(GCommand.getPrefix() + "srv")){
+                if (event.getGuild().getSelfMember().hasPermission(Permission.MESSAGE_EMBED_LINKS)) { // si il le bot à les droit pour écrires
+                    channel.sendTyping();
+                    channel.sendMessage(GCommand.CommandServer(Gserver , msg.split(" ")[1],msg.split(" ")[2]).build()).queue();
+                } else { // sinon il envoie le message à la personne
+                    channel.sendTyping();
+                    channel.sendMessage("@" + author.getName() + " regarde tes messages privés").queue();
+                    author.openPrivateChannel().complete().sendTyping();
+                    author.openPrivateChannel().complete().sendMessage(GCommand.CommandHelp(Gserver).build()).queue();
+                }
             }
         }else{
             event.getMessage().delete();
             author.openPrivateChannel().complete().sendTyping();
             author.openPrivateChannel().complete().sendMessage(author.getName()+" je ne peux pas vous répondre dans le channel ["+channel.getName()+"] refaite la commande dans ["+jda.getTextChannelById("429046247798865920").getName()+"]").queue();
         }
-    }
-
-    private EmbedBuilder setEmbedBuilder_Helper() {
-        EmbedBuilder build = new EmbedBuilder();
-        build.setTitle("**HELP**");
-        build.setColor(Color.red);
-        build.setDescription("Voici tous les commandes disponible : \n\nPour chaque commande rajouter devant \""+id+"\" \n\n ");
-
-        for (Commande c : m_command) {
-            build.appendDescription("[COMMANDE]["+c.getM_title() + "]\n> **" + c.getM_command() + "**  " + c.getM_descrip()+"\n\n");
-        }
-        build.appendDescription("==========================================================\n\nVoici tous les serveurs : \n ");
-        for (GroupServer s:m_serveur) {
-            build.appendDescription("\n[SERVER GROUP : "+s.getM_title()+"]\n\n");
-            for(int i=0;i<s.getSize();i++){
-                Serveur srv = s.getServeurbyId(i);
-                build.appendDescription("["+srv.getM_pays()+"]"+srv.getM_name()+"\n");
-            }
-        }
-        return build;
     }
 }
