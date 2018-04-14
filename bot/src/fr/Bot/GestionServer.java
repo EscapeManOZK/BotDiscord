@@ -11,7 +11,8 @@ public class GestionServer {
     private BufferedReader m_buffer;
     private List<GroupServer> m_serveur;
     private List<String>pays;
-    public GestionServer(String url) throws IOException {
+    private String url = "https://www.g-status.com/game/soulworker";
+    public GestionServer() throws IOException {
         // initialisation
         m_buffer = new BufferedReader(new InputStreamReader(new URL(url).openStream()));
         m_serveur = new ArrayList<GroupServer>();

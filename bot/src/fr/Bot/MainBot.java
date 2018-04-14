@@ -6,10 +6,17 @@ import net.dv8tion.jda.core.*;
 import net.dv8tion.jda.core.entities.*;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.core.hooks.ListenerAdapter;
+import net.dv8tion.jda.core.requests.RestAction;
 
 import javax.security.auth.login.LoginException;
+import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.IOException;
-import java.util.*;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import java.util.Scanner;
 
 
 public class MainBot extends ListenerAdapter
@@ -18,6 +25,8 @@ public class MainBot extends ListenerAdapter
     private GestionCommande GCommand;
     private GestionServer Gserver;
     private boolean GserverInitialise = false;
+    private TextChannel Information;
+    JDA jda ;
 
 
 
@@ -26,14 +35,88 @@ public class MainBot extends ListenerAdapter
      */
     public static void main(String[] args)
     {
+        MainBot run = new MainBot();
+        run.run(args);
+    }
 
-        JDA jda = null;
+    private void initCommand() {
+        GCommand = new GestionCommande();
+
+    }
+
+    private void initServeur()  {
+        try {
+            Gserver = new GestionServer();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+    }
+    private void onChangeServer() {
+        //clean channel info
+        try {
+            GestionServer Gtemps = new GestionServer();
+            if (Gserver.GroupServerActualise(Gtemps)){
+                Information.sendMessage(GCommand.ChangeServeur(Gserver).build()).queue();
+            }else {
+                String message = "Les serveurs n'ont changer pas d'état";
+                if (Information.getLatestMessageId()!=null) {
+                    Message msg = Information.getMessageById(Information.getLatestMessageId()).complete();
+                    System.out.println(msg.toString());
+                    if (msg.getContentDisplay().contains(message)) {
+                        System.out.println("passer");
+                        SimpleDateFormat d = new SimpleDateFormat("dd/MM/yyyy");
+                        SimpleDateFormat h = new SimpleDateFormat("hh:mm");
+
+                        Date currentTime_1 = new Date();
+
+                        String dateString = d.format(currentTime_1);
+                        String heureString = h.format(currentTime_1);
+                        msg.editMessage(message + " [ " + heureString + " , " + dateString + " ]").queue();
+                    }else
+                        sendMessageNoChange(message);
+
+                }else{
+                    sendMessageNoChange(message);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendMessageNoChange(String message) {
+        SimpleDateFormat d = new SimpleDateFormat("dd/MM/yyyy");
+        SimpleDateFormat h = new SimpleDateFormat("hh:mm");
+
+        Date currentTime_1 = new Date();
+
+        String dateString = d.format(currentTime_1);
+        String heureString = h.format(currentTime_1);
+        Information.sendMessage(message + " [ " + heureString + " , " + dateString + " ]").queue();
+    }
+
+    private void exit() {
+        Information.sendTyping();
+        Information.sendMessage("Bye everyone").queue();
+        //Information.sendMessage(GCommand.CommandEtat(Gserver).build()).queue();
+        jda.shutdown();
+        stop = true;
+    }
+
+    private void run(String[] args) {
+        initCommand();
+        initServeur();
         try
         {
             jda = new JDABuilder(AccountType.BOT)
                     .setToken(args[0])
                     .addEventListener(new MainBot())
                     .buildBlocking();
+            Information = jda.getTextChannelById("434462918990495761");
+            Information.sendTyping();
+            Information.sendMessage("Hello everyone").queue();
+            Information.sendMessage(GCommand.CommandEtat(Gserver).build()).queue();
 
         }
         catch (LoginException e)
@@ -44,43 +127,21 @@ public class MainBot extends ListenerAdapter
         {
             e.printStackTrace();
         }
+        Timer timer;
+        timer = new Timer(30000, new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+                onChangeServer();
+            }
+        });
+        timer.start();
         while (!stop) {
             Scanner scanner = new Scanner(System.in);
             String cmd = scanner.next();
             if (cmd.equalsIgnoreCase("stop")) {
-                exit(jda);
+                exit();
             }
         }
-    }
-
-    private void initCommand() {
-        GCommand = new GestionCommande();
-
-    }
-    private void initServeur()  {
-        if (!GserverInitialise) {
-            try {
-                Gserver = new GestionServer("https://www.g-status.com/game/soulworker");
-                GserverInitialise = true;
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }else{
-            try {
-                GestionServer Gtemps = new GestionServer("https://www.g-status.com/game/soulworker");
-                Gserver.GroupServerActualise(Gtemps);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-    }
-
-    private static void exit(JDA jda) {
-        jda.getTextChannelById("429046247798865920").sendTyping();
-        jda.getTextChannelById("429046247798865920").sendMessage("Au revoir everyone").queue();
-        jda.shutdown();
-        stop = true;
     }
 
     /**
@@ -104,8 +165,7 @@ public class MainBot extends ListenerAdapter
     {
         initCommand();
         initServeur();
-
-        JDA jda = event.getJDA();
+        JDA jda =event.getJDA();
         User author = event.getAuthor();
         Message message = event.getMessage();
         MessageChannel channel = event.getChannel();
@@ -147,69 +207,61 @@ public class MainBot extends ListenerAdapter
 
 
 
-
-        if (event.getTextChannel().canTalk()) {
-            int i;
-            boolean find=false;
-            for (i=0;i<GCommand.getM_command().size()&&!find;i++) {
-                if(msg.contains(GCommand.getPrefix()+GCommand.getM_command().get(i).getM_command())){
-                    find=true;
-                }
+        int i;
+        boolean find=false;
+        for (i=0;i<GCommand.getM_command().size()&&!find;i++) {
+            if(msg.contains(GCommand.getPrefix()+GCommand.getM_command().get(i).getM_command())){
+                find=true;
             }
-            i--;
-            if (find){
-                if (event.getGuild().getSelfMember().hasPermission(Permission.MESSAGE_EMBED_LINKS)) { // si il le bot à les droit pour écrires
-                    channel.sendTyping();
-                    switch (i){
-                        case 0:    //help
-                            channel.sendMessage(GCommand.CommandHelp(Gserver).build()).queue();
-                            break;
-                        case 1:    //état
-                            channel.sendMessage(GCommand.CommandEtat(Gserver).build()).queue();
-                            break;
-                        case 2:    //server
-                            channel.sendMessage(GCommand.CommandServer(Gserver , msg).build()).queue();
-                            System.out.println("ok");
-                            break;
-                        case 3:    //online
-                            channel.sendMessage(GCommand.CommandOn(Gserver).build()).queue();
-                            break;
-                        case 4:    //offline
-                            channel.sendMessage(GCommand.CommandOff(Gserver).build()).queue();
-                            break;
-                    }
-
-                } else { // sinon il envoie le message à la personne
-                    channel.sendTyping();
-                    channel.sendMessage("@" + author.getName() + " regarde tes messages privés").queue();
-                    author.openPrivateChannel().complete().sendTyping();
-                    switch (i){
-                        case 0:    //help
-                            author.openPrivateChannel().complete().sendMessage(GCommand.CommandHelp(Gserver).build()).queue();
-                            break;
-                        case 1:    //état
-                            author.openPrivateChannel().complete().sendMessage(GCommand.CommandEtat(Gserver).build()).queue();
-                            break;
-                        case 2:    //server
-                            author.openPrivateChannel().complete().sendMessage(GCommand.CommandServer(Gserver , msg).build()).queue();
-                            System.out.println("ok");
-                            break;
-                        case 3:    //online
-                            author.openPrivateChannel().complete().sendMessage(GCommand.CommandOn(Gserver).build()).queue();
-                            break;
-                        case 4:    //offline
-                            author.openPrivateChannel().complete().sendMessage(GCommand.CommandOff(Gserver).build()).queue();
-                            break;
-                    }
-
+        }
+        i--;
+        if (find){
+            if (event.getGuild().getSelfMember().hasPermission(Permission.MESSAGE_EMBED_LINKS)&&event.getTextChannel().getId()=="429046247798865920") { // si il le bot à les droit pour écrires
+                channel.sendTyping();
+                switch (i){
+                    case 0:    //help
+                        channel.sendMessage(GCommand.CommandHelp(Gserver).build()).queue();
+                        break;
+                    case 1:    //état
+                        channel.sendMessage(GCommand.CommandEtat(Gserver).build()).queue();
+                        break;
+                    case 2:    //server
+                        channel.sendMessage(GCommand.CommandServer(Gserver , msg).build()).queue();
+                        System.out.println("ok");
+                        break;
+                    case 3:    //online
+                        channel.sendMessage(GCommand.CommandOn(Gserver).build()).queue();
+                        break;
+                    case 4:    //offline
+                        channel.sendMessage(GCommand.CommandOff(Gserver).build()).queue();
+                        break;
                 }
 
+
+            } else { // sinon il envoie le message à la personne
+                channel.sendTyping();
+                event.getMessage().delete().reason("Pas au bon channel").queue();
+                author.openPrivateChannel().complete().sendTyping();
+                switch (i){
+                    case 0:    //help
+                        author.openPrivateChannel().complete().sendMessage(GCommand.CommandHelp(Gserver).build()).queue();
+                        break;
+                    case 1:    //état
+                        author.openPrivateChannel().complete().sendMessage(GCommand.CommandEtat(Gserver).build()).queue();
+                        break;
+                    case 2:    //server
+                        author.openPrivateChannel().complete().sendMessage(GCommand.CommandServer(Gserver , msg).build()).queue();
+                        System.out.println("ok");
+                        break;
+                    case 3:    //online
+                        author.openPrivateChannel().complete().sendMessage(GCommand.CommandOn(Gserver).build()).queue();
+                        break;
+                    case 4:    //offline
+                        author.openPrivateChannel().complete().sendMessage(GCommand.CommandOff(Gserver).build()).queue();
+                        break;
+                }
             }
 
-        }else{
-            event.getMessage().delete();
-            author.openPrivateChannel().complete().sendTyping();
-            author.openPrivateChannel().complete().sendMessage(author.getName()+" je ne peux pas vous répondre dans le channel ["+channel.getName()+"] refaite la commande dans ["+jda.getTextChannelById("429046247798865920").getName()+"]").queue();
         }
     }
 }

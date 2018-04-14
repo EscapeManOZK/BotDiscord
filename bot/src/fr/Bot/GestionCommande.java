@@ -65,16 +65,7 @@ public class GestionCommande {
         build.setTitle("**ETAT**");
         build.setColor(Color.red);
         build.appendDescription("\nVoici tous les serveurs : \n ");
-        for (int j=0;j<Gsrv.getSize();j++) {
-            GroupServer s = Gsrv.takeGroupServerById(j);
-            build.appendDescription("\n[SERVER GROUP : "+s.getM_title()+"]\n\n");
-            for(int i=0;i<s.getSize();i++){
-                Serveur srv = s.getServeurbyId(i);
-                String actif ="";
-                if (srv.getM_actif()) actif="ONLINE"; else actif = "OFFLINE";
-                build.appendDescription("["+srv.getM_pays()+"]"+srv.getM_name()+"  "+srv.getM_date()+"  "+actif+"\n");
-            }
-        }
+        seeServerData(Gsrv, build);
         return build;
     }
 
@@ -140,5 +131,27 @@ public class GestionCommande {
             }
         }
         return build;
+    }
+
+    public EmbedBuilder ChangeServeur(GestionServer Gsrv){
+        EmbedBuilder build = new EmbedBuilder();
+        build.setTitle("**ETAT_SERVEUR_CHANGE**");
+        build.setColor(Color.red);
+        build.appendDescription("\nVoici tous les serveurs : \n ");
+        seeServerData(Gsrv, build);
+        return build;
+    }
+
+    private void seeServerData(GestionServer Gsrv, EmbedBuilder build) {
+        for (int j=0;j<Gsrv.getSize();j++) {
+            GroupServer s = Gsrv.takeGroupServerById(j);
+            build.appendDescription("\n[SERVER GROUP : "+s.getM_title()+"]\n\n");
+            for(int i=0;i<s.getSize();i++){
+                Serveur srv = s.getServeurbyId(i);
+                String actif ="";
+                if (srv.getM_actif()) actif="ONLINE"; else actif = "OFFLINE";
+                build.appendDescription("["+srv.getM_pays()+"]"+srv.getM_name()+"  "+srv.getM_date()+"  "+actif+"\n");
+            }
+        }
     }
 }
