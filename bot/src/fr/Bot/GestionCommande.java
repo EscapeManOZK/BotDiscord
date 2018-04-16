@@ -2,6 +2,7 @@ package fr.Bot;
 
 import net.dv8tion.jda.core.EmbedBuilder;
 import net.dv8tion.jda.core.entities.Message;
+import net.dv8tion.jda.core.entities.User;
 import net.dv8tion.jda.core.events.message.MessageReceivedEvent;
 import org.w3c.dom.events.Event;
 
@@ -25,12 +26,14 @@ public class GestionCommande {
         Commande on = new Commande("ONLINE", "online","Affiche les serveurs disponibles");
         Commande off = new Commande("OFFLINE", "offline","Affiche les serveurs non disponible");
         Commande clean = new Commande("CLEAN","clean","<Nb de message> Supprime le nombre indiqué de messages dans le channel ");
+        Commande Message = new Commande("","mp","");
         m_command.add(help);
         m_command.add(etat);
         m_command.add(server);
         m_command.add(on);
         m_command.add(off);
         m_command.add(clean);
+        m_command.add(Message);
     }
 
     public List<Commande> getM_command() {
@@ -46,13 +49,14 @@ public class GestionCommande {
     }
 
 
-    public EmbedBuilder CommandHelp(GestionServer Gsrv){
+    public EmbedBuilder CommandHelp(GestionServer Gsrv,User event){
         EmbedBuilder build = new EmbedBuilder();
         build.setTitle("**HELP**");
         build.setColor(Color.red);
         build.setDescription("Voici tous les commandes disponible : \n\nPour chaque commande rajouter devant \""+Prefix+"\" \n\n ");
 
         for (Commande c : m_command) {
+            if (c.getM_title()!="")
             build.appendDescription("[COMMANDE]["+c.getM_title() + "]\n> **" + c.getM_command() + "**  " + c.getM_descrip()+"\n\n");
         }
         build.appendDescription("==========================================================\n\nVoici tous les serveurs : \n ");
@@ -64,10 +68,11 @@ public class GestionCommande {
                 build.appendDescription("["+srv.getM_pays()+"]"+srv.getM_name()+"\n");
             }
         }
+        build.setFooter("©By "+event.getName()+" created by EscapeMan",event.getAvatarUrl());
         return build;
     }
 
-    public EmbedBuilder CommandEtat(GestionServer Gsrv){
+    public EmbedBuilder CommandEtat(GestionServer Gsrv,User event){
         SimpleDateFormat d = new SimpleDateFormat("dd/MM/yyyy");
         SimpleDateFormat h = new SimpleDateFormat("hh:mm");
 
@@ -80,6 +85,7 @@ public class GestionCommande {
         build.setColor(Color.red);
         build.appendDescription("\nVoici tous les serveurs : \n ");
         seeServerData(Gsrv, build);
+        build.setFooter("©By "+event.getName()+" created by EscapeMan",event.getAvatarUrl());
         return build;
     }
 
@@ -183,7 +189,7 @@ public class GestionCommande {
         return build;
     }
 
-    public EmbedBuilder ChangeServeur(GestionServer Gsrv){
+    public EmbedBuilder ChangeServeur(GestionServer Gsrv,User event){
         SimpleDateFormat d = new SimpleDateFormat("dd/MM/yyyy");
         SimpleDateFormat h = new SimpleDateFormat("hh:mm");
 
@@ -196,6 +202,7 @@ public class GestionCommande {
         build.setColor(Color.red);
         build.appendDescription("\nVoici tous les serveurs : \n ");
         seeServerData(Gsrv, build);
+        build.setFooter("©By "+event.getName()+" created by EscapeMan",event.getAvatarUrl());
         return build;
     }
 
@@ -212,7 +219,7 @@ public class GestionCommande {
         }
     }
 
-    public EmbedBuilder CommandClean(MessageReceivedEvent event,String msg){
+    public EmbedBuilder CommandClean(MessageReceivedEvent event,String msg,User usr){
         EmbedBuilder build = new EmbedBuilder();
         System.out.println(msg.split(" ").length);
         if (msg.split(" ").length>2||msg.split(" ").length<=1){
@@ -227,6 +234,31 @@ public class GestionCommande {
                 event.getTextChannel().deleteMessages(m_msg).queue();
                 build.appendDescription(nb+" messages supprimés avec succés");
             }
+        }
+        build.setFooter("©By "+usr.getName()+" created by EscapeMan",null);
+        return build;
+    }
+    public EmbedBuilder CommandMessage(User usr, String msg,MessageReceivedEvent event){
+        EmbedBuilder build = new EmbedBuilder();
+        String[] split = msg.split(" ");
+        if (split.length<=1){
+            return null;
+        }else {
+            String titre="";
+            int i;
+            for (i=1; i< split.length&&!split[i].equals("_d:"); i++){
+                titre+= split[i]+" ";
+            }
+            String Mes="";
+            for (int j = i; j< split.length; j++){
+                if (!split[j].equals("_d:"))
+                Mes += split[j]+" ";
+            }
+            build.setAuthor(event.getAuthor().getName(),null,event.getAuthor().getAvatarUrl());
+            build.setColor(Color.BLACK);
+            build.setTitle(titre);
+            build.appendDescription(Mes);
+            build.setFooter("©By "+usr.getName()+" created by EscapeMan",null);
         }
         return build;
     }
