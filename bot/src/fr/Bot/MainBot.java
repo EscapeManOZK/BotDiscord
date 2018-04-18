@@ -335,7 +335,7 @@ public class MainBot extends ListenerAdapter
                 }
 
             }
-        }else if (event.getTextChannel().getId().equals("430035981660454942")){
+        }else if (event.getTextChannel().getId().equals("430035981660454942")&&msg.contains(event.getAuthor().getName())){
             event.getAuthor().openPrivateChannel().complete().sendTyping().queue();
             event.getTextChannel().sendTyping().queue();
             EmbedBuilder build = new EmbedBuilder();
